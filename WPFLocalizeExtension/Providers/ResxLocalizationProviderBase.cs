@@ -497,8 +497,8 @@ namespace WPFLocalizeExtension.Providers
                     var assemblyLocation = Path.GetDirectoryName(assembly.Location);
 
                     // Get the list of all cultures.
-                    var cultures = CultureInfo.GetCultures(CultureTypes.AllCultures);
-                    
+                    var cultures = GetAvailableCultures();
+
                     foreach (var c in cultures)
                     {
                         var rs = resManager.GetResourceSet(c, true, false);
@@ -514,6 +514,54 @@ namespace WPFLocalizeExtension.Providers
 
             // return the found ResourceManager
             return resManager;
+        }
+
+        /// <summary>
+        /// Update LDC: allow the caller to specify a certain number of culture
+        /// instead of loading them all. Specify cultures in app.config
+        /// </summary>
+        /// <returns></returns>
+        private CultureInfo[] GetAvailableCultures()
+        {
+            String configurationKey = "availableCultures";
+            char[] splitCharacters = { '|', ',', ';' };
+
+            // Return cultures specified within the app.config file
+            if (System.Configuration.ConfigurationManager.AppSettings.AllKeys.Contains(configurationKey))
+            {
+                String availableCulturesString = System.Configuration.ConfigurationManager.AppSettings[configurationKey];
+                if (!String.IsNullOrEmpty(availableCulturesString))
+                {
+                    // Split the available cultures
+                    String[] availableCulturesList = availableCulturesString
+                        .Split(splitCharacters, StringSplitOptions.RemoveEmptyEntries);
+
+                    if (availableCulturesList.Length > 0)
+                    {
+                        IList<CultureInfo> availableCultures = new List<CultureInfo>();
+
+                        foreach (String availableCultureString in availableCulturesList)
+                        {
+                            try
+                            {
+                                availableCultures.Add(CultureInfo.GetCultureInfo(availableCultureString));
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine(@"The current culture string '" +
+                                    availableCultureString +
+                                    @"' in the app.config cannot be parsed: " +
+                                    ex);
+                            }
+                        }
+
+                        return availableCultures.ToArray();
+                    }
+                }
+            }
+
+            // Fallback: Get the list of all cultures.
+            return CultureInfo.GetCultures(CultureTypes.AllCultures);
         }
 
         private ResourceManager GetResourceManagerFromType(Type type)
